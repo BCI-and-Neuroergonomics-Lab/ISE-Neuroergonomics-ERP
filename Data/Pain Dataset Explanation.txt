@@ -1,0 +1,38 @@
+All data have been recorded with the Brain Vision Recorder software (Brain Products, Munich, Germany),
+which supports the BrainVision Data Exchange Format only. This format is described in detail in the
+Brain Vision Recorder manual (https://www.brainproducts.com/downloads.php?kid=2). Most importantly,
+an EEG consists of three files: the header file, the marker file and the actual data. The headerfile describes the EEG.
+This file is an ASCII file with the extension .vhdr. The format of the header file is based on the Windows® INI format.
+The marker file with the extension .vmrk is based on the same principle of sections and keywords as the header file.
+The first line identifies the marker file, as follows: Brain Vision Data Exchange Marker File Version 1.0.
+
+For every participant we uploaded 4 (condition) x 3 (data, header, marker) files. The experiment included
+four conditions, which were presented in randomized order:
+
+In the perception condition, participants were prompted by an auditory cue presented 3 s after each noxious stimulus
+to verbally rate the perceived pain intensity on a numerical rating scale ranging from 0 (no pain) to
+100 (worst tolerable pain). Pain ratings served as a measure of the perceptual dimension of pain.
+The respective files are named: Exp_Mediation_Paradigm1_Perception_vpxx.eeg Exp_Mediation_Paradigm1_Perception_vpxx.vhdr
+ Exp_Mediation_Paradigm1_Perception_vpxx.vmrk
+
+In the motor condition, participants were instructed to release a button with the index finger of the right hand
+as fast as possible in response to each noxious stimulus. Reaction times served as a measure of the
+motor dimension of pain. The respective files are named: Exp_Mediation_Paradigm2_Motor_vpxx.eeg
+Exp_Mediation_Paradigm2_Motor_vpxx.vhdr Exp_Mediation_Paradigm2_Motor_vpxx.vmrk
+
+During the autonomic condition, participants were instructed to focus on the painful stimulation without any further
+task while SCRs were recorded. SCRs served as a measure of the autonomic dimension of pain. The respective files are
+named: Exp_Mediation_Paradigm3_EDA_vpxx.eeg Exp_Mediation_Paradigm3_EDA_vpxx.vhdr Exp_Mediation_Paradigm3_EDA_vpxx.vmrk
+
+In the combined condition, the participants were asked to first release the button as fast as possible in response
+to the noxious stimulus and then provide a pain rating. In addition, SCRs were recorded.
+Exp_Mediation_Paradigm4_Control_vpxx.eeg Exp_Mediation_Paradigm4_Control_vpxx.vhdr Exp_Mediation_Paradigm4_Control_vpxx.vmrk
+
+In each condition, 60 painful stimuli were applied to the dorsum of the left hand. Stimulus intensity was varied
+between three individually adjusted levels (low [n=20], medium [n=20] and high [n=20]) in a pseudo-randomized sequence.
+Stimuli were presented with an inter-stimulus interval of 8 - 12 sec.
+
+The occurrence of all relevant events and reactions (noxious laser stimulation, rating, button release etc.) is noted
+in the form of certain triggers and markers in the marker file. The additional excel-file
+"Brain mediators of pain_overview triggers" (see uploaded files) specifies the sequence and meaning of all relevant
+triggers and markers separately for the three conditions.

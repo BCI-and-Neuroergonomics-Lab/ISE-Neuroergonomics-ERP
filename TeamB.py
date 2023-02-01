@@ -1,0 +1,128 @@
+from tkinter.messagebox import askyesno
+from tkinter import *
+import matplotlib
+import pandas
+import pickle
+import mne
+mne.set_log_level(verbose="CRITICAL")  # hush MNE
+Tk().withdraw()
+
+
+def get_latency_amplitude(good_tmin, good_tmax, dat, ref=None, mode="abs"):
+    #  NOTE: FOR UNKNOWN REASONS, ERP TIMESTAMPS NEED +1s ADDED ON (ex: 150ms -> 1150ms)
+    good_tmax = good_tmax + 1.0
+    good_tmin = good_tmin + 1.0
+
+    erp = dat.copy()
+    if ref:  # if a reference electrode is provided
+        erp.pick([ref])  # focus on the one electrode
+    stim = erp.average()
+
+    try:
+        _, lat = stim.get_peak(ch_type='eeg', tmin=good_tmin, tmax=good_tmax, mode=mode)  # gather peak latency
+    except ValueError:
+        return "NA", "NA"
+
+    # Extract mean amplitude in µV over time
+    stim.crop(tmin=good_tmin, tmax=good_tmax)
+    mean_amp = stim.data.mean(axis=1)
+
+    lat = int((lat - 1.0) * 1e3)  # convert latency to ms and remove the +1s
+    amp = mean_amp[0] * 1e6  # grab our mean amplitude in µV
+    return lat, amp
+
+
+# Load our database of subjects
+source = open("Data/TeamB_EEG.pkl", "rb")
+P = pickle.load(source)
+source.close()
+
+# denote all events and their IDs
+stims = ['Stimulus/S  1', 'Stimulus/S  2', 'Stimulus/S  3']
+mapping = {"Stimulus/S  5": 101, "Stimulus/S  6": 103, "Laser/L  1": 102, "New Segment/": 99999,
+           "Stimulus/S  1": 1000, "Stimulus/S  2": 2000, "Stimulus/S  3": 3000}  # add the known stimulus labels
+for i in range(0, 101):  # add the verbal pain ratings in a loop, as they can be anywhere from 0-100
+    read = "Comment/" + str(i)
+    write = i
+    mapping[read] = write  # mimic the same format of {read this: change to this} for event annotations
+
+# mark male vs female subjects
+sex = dict(male=[2, 4, 5, 6, 9, 14, 15, 18, 19, 21, 22, 25, 27, 33, 34, 36, 38, 39, 40, 41, 42, 43, 44, 45, 48, 51],
+           female=[1, 3, 7, 8, 10, 11, 12, 13, 16, 17, 20, 23, 24, 26, 28, 29, 30, 31, 32, 35, 37, 46, 47, 49, 50])
+
+# important values for output file at the end
+header = ["ID", "Sex", "Stimulus", "Component", "Value"]
+fill = []
+
+# begin processing the data!
+for subject in P.keys():  # for each subject
+    if int(subject) in sex["male"]:
+        gender = "male"
+    elif int(subject) in sex["female"]:
+        gender = "female"
+    data = P[subject]  # load the subject
+    events, event_dict = mne.events_from_annotations(data, event_id=mapping)  # extract their events
+    data.load_data()
+
+    # Pre-Processing
+    print("Filtering...")
+    artifact_removal = data.copy()
+    artifact_removal.filter(l_freq=1.0, h_freq=None, n_jobs=-1)  # high-pass filter at 1Hz
+    artifact_removal.notch_filter(50.0, n_jobs=-1)  # notch filter at 50Hz
+
+    # ICA artifact removal
+    print("Fitting ICA...")
+    ica = mne.preprocessing.ICA(n_components=10, random_state=42, max_iter="auto")
+    ica.fit(artifact_removal)  # fit the ICA with EEG and EOG information
+
+    # Visually inspect the data
+    print("Visually inspecting components...")
+    for i in range(ica.n_components_):  # look at each component
+        ica.plot_properties(data, picks=[i], psd_args={"fmin": 1.0, "fmax": 60.0}, show=False)
+        matplotlib.pyplot.show(block=False)
+        if askyesno('ICA Component Analysis', 'Include Component?'):
+            print("Included!")
+        else:
+            print("Excluded :(")
+            ica.exclude.append(i)
+        matplotlib.pyplot.close()
+    ica.apply(data)  # apply ICA to data, removing the artifacts
+
+    # Epoch from -1500 to 3000ms. Should be 18 trials per stimulus intensity
+    data.set_eeg_reference(ref_channels="average")
+    reject_criteria = dict(eeg=200e-6)  # 200 µV
+    all_epochs = mne.Epochs(data, events, event_id=event_dict, tmin=-1.5, tmax=3.0,
+                        reject=None, preload=True, baseline=(-0.2, 0))
+
+    for level in stims:  # for each stimulus level experienced
+        ##################
+        # ERP components #
+        ##################
+        print(level)
+        epochs = all_epochs.copy()[level]
+        epochs.filter(l_freq=1.0, h_freq=30.0, n_jobs=-1)  # 1-30Hz filter
+        epochs.set_eeg_reference(ref_channels=["Fz"])  # re-reference to Fz
+
+        # Get peak amplitude and latency of N1 at electrode C4
+        latency, amplitude = get_latency_amplitude(0.150, 0.180, epochs, "C4", mode="neg")
+        fill.append([subject, gender, level[-1], "N1_Lat", latency])
+        fill.append([subject, gender, level[-1], "N1_Amp", amplitude])
+
+        epochs.set_eeg_reference(ref_channels="average")  # re-reference to average
+
+        # Get peak amplitude and latency of a baseline period
+        _, amplitude = get_latency_amplitude(-1, 0, epochs)
+        fill.append([subject, gender, level[-1], "Baseline_Amp", amplitude])
+
+        # Get peak amplitude and latency of N2 at electrode CZ
+        latency, amplitude = get_latency_amplitude(0.180, 0.210, epochs, "Cz", mode="neg")
+        fill.append([subject, gender, level[-1], "N2_Lat", latency])
+        fill.append([subject, gender, level[-1], "N2_Amp", amplitude])
+
+        # Get peak amplitude and latency of P2 at electrode Cz
+        latency, amplitude = get_latency_amplitude(0.290, 0.320, epochs, "Cz", mode="pos")
+        fill.append([subject, gender, level[-1], "P2_Lat", latency])
+        fill.append([subject, gender, level[-1], "P2_Amp", amplitude])
+
+results = pandas.DataFrame(data=fill, columns=header)
+results.to_csv("Output/TeamB_Results.csv")
