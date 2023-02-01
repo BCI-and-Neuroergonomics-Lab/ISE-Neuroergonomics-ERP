@@ -56,6 +56,7 @@ fill = []
 
 # begin processing the data!
 for subject in P.keys():  # for each subject
+    print("Subject: {}".format(subject))
     if int(subject) in sex["male"]:
         gender = "male"
     elif int(subject) in sex["female"]:
@@ -67,8 +68,8 @@ for subject in P.keys():  # for each subject
     # Pre-Processing
     print("Filtering...")
     artifact_removal = data.copy()
-    artifact_removal.filter(l_freq=1.0, h_freq=None, n_jobs=-1)  # high-pass filter at 1Hz
-    artifact_removal.notch_filter(50.0, n_jobs=-1)  # notch filter at 50Hz
+    artifact_removal.filter(l_freq=1.0, h_freq=None, n_jobs=1)  # high-pass filter at 1Hz
+    artifact_removal.notch_filter(50.0, n_jobs=1)  # notch filter at 50Hz
 
     # ICA artifact removal
     print("Fitting ICA...")
@@ -81,9 +82,9 @@ for subject in P.keys():  # for each subject
         ica.plot_properties(data, picks=[i], psd_args={"fmin": 1.0, "fmax": 60.0}, show=False)
         matplotlib.pyplot.show(block=False)
         if askyesno('ICA Component Analysis', 'Include Component?'):
-            print("Included!")
+            print("Component {} included".format(i))
         else:
-            print("Excluded :(")
+            print("Component {} excluded".format(i))
             ica.exclude.append(i)
         matplotlib.pyplot.close()
     ica.apply(data)  # apply ICA to data, removing the artifacts
@@ -92,15 +93,15 @@ for subject in P.keys():  # for each subject
     data.set_eeg_reference(ref_channels="average")
     reject_criteria = dict(eeg=200e-6)  # 200 µV
     all_epochs = mne.Epochs(data, events, event_id=event_dict, tmin=-1.5, tmax=3.0,
-                        reject=None, preload=True, baseline=(-0.2, 0))
+                            reject=reject_criteria, preload=True, baseline=(-0.2, 0))
 
     for level in stims:  # for each stimulus level experienced
         ##################
         # ERP components #
         ##################
-        print(level)
+        print("Extracting ERPs for stimulus level {}".format(level[-1]))
         epochs = all_epochs.copy()[level]
-        epochs.filter(l_freq=1.0, h_freq=30.0, n_jobs=-1)  # 1-30Hz filter
+        epochs.filter(l_freq=1.0, h_freq=30.0, n_jobs=1)  # 1-30Hz filter
         epochs.set_eeg_reference(ref_channels=["Fz"])  # re-reference to Fz
 
         # Get peak amplitude and latency of N1 at electrode C4
