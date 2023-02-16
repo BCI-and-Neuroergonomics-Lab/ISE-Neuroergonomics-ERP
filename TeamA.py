@@ -133,9 +133,9 @@ for subject in P.keys():  # for each subject
 
     # Epoch from -1500 to 3000ms. Should be 18 trials per stimulus intensity
     data.set_eeg_reference(ref_channels="average")
-    reject_criteria = dict(eeg=200e-6)  # 200 µV
+    # reject_criteria = dict(eeg=200e-6)  disabled rejection criteria to handle poor ICA extraction conditions
     all_epochs = mne.Epochs(data, events, event_id=event_dict, tmin=-1.5, tmax=3.0,
-                            reject=reject_criteria, preload=True, baseline=(-0.2, 0))
+                            reject=None, preload=True, baseline=(-0.2, 0))
 
     for level in stims:  # for each stimulus level experienced
         ##################
